@@ -6,8 +6,8 @@ from datetime import date
 import time
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="LLMOチェック v0.1a", layout="wide")
-st.title("🔍 LLMOチェックツール v0.1a")
+st.set_page_config(page_title="LLMOチェック v0.1b", layout="wide")
+st.title("🔍 LLMOチェックツール v0.1b")
 st.markdown("指定ドメインが各キーワードでGoogleやAI検索にどれくらい出てくるかを調査・可視化します。")
 
 # 入力フォーム
@@ -22,14 +22,14 @@ if submitted and domain and keywords_input:
     keywords = [k.strip() for k in keywords_input.strip().split("\n") if k.strip()][:10]
     result_data = []
 
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 
     for kw in keywords:
         query = kw.replace(" ", "+")
         url = f"https://www.google.com/search?q={query}"
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.text, "html.parser")
-        results = soup.select("div.g")
+        results = soup.select("div.tF2Cxc")
 
         found = False
         match_url = ""
@@ -37,8 +37,8 @@ if submitted and domain and keywords_input:
         debug_urls = []
 
         for r in results[:5]:
-            link_tag = r.find("a")
-            if link_tag and link_tag.has_attr("href"):
+            link_tag = r.find("a", href=True)
+            if link_tag:
                 link = link_tag["href"]
                 text = r.get_text()
                 debug_urls.append(link)

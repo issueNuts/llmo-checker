@@ -6,13 +6,13 @@ from datetime import date
 import time
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="LLMOチェック v0.1b", layout="wide")
-st.title("🔍 LLMOチェックツール v0.1b")
+st.set_page_config(page_title="LLMOチェック v0.1c", layout="wide")
+st.title("🔍 LLMOチェックツール v0.1c")
 st.markdown("指定ドメインが各キーワードでGoogleやAI検索にどれくらい出てくるかを調査・可視化します。")
 
 # 入力フォーム
 with st.form("llmo_form"):
-    domain = st.text_input("調査対象ドメイン（例: xxxxx.co.jp）", "")
+    domain = st.text_input("調査対象ドメイン（例: yahoo.co.jp）", "")
     keywords_input = st.text_area("キーワード一覧（1行に1キーワード、最大10件）", "")
     enable_debug = st.checkbox("デバッグモード（解析中のURLを表示）", value=False)
     submitted = st.form_submit_button("分析スタート")
@@ -22,14 +22,18 @@ if submitted and domain and keywords_input:
     keywords = [k.strip() for k in keywords_input.strip().split("\n") if k.strip()][:10]
     result_data = []
 
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
     for kw in keywords:
         query = kw.replace(" ", "+")
-        url = f"https://www.google.com/search?q={query}"
+        url = f"https://www.google.co.jp/search?q={query}&hl=ja"
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.text, "html.parser")
-        results = soup.select("div.tF2Cxc")
+
+        # 複数のセレクタに対応
+        results = soup.select("div.tF2Cxc, div.g, div.MjjYud")
 
         found = False
         match_url = ""
@@ -42,8 +46,8 @@ if submitted and domain and keywords_input:
                 link = link_tag["href"]
                 text = r.get_text()
                 debug_urls.append(link)
-                # ゆるい一致判定
-                if domain in link or f"www.{domain}" in link or domain in text:
+                # ゆるい一致判定（小文字化して比較）
+                if domain.lower() in link.lower() or f"www.{domain}".lower() in link.lower() or domain.lower() in text.lower():
                     found = True
                     match_url = link
                     snippet = text[:150]
@@ -57,7 +61,7 @@ if submitted and domain and keywords_input:
             "デバッグURL一覧": "; ".join(debug_urls) if enable_debug else ""
         })
 
-        time.sleep(1.5)  # 負荷対策
+        time.sleep(1.5)
 
     df = pd.DataFrame(result_data)
     st.success(f"検索完了！{len(df)} 件中 {df['ヒット'].tolist().count('○')} 件ヒットしました。")
@@ -71,7 +75,6 @@ if submitted and domain and keywords_input:
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button("CSVとしてダウンロード", data=csv, file_name=f"llmo_results_{date.today()}.csv", mime="text/csv")
 
-    # TODO: AI検索連携（Perplexity APIなど）を次バージョンで追加
     st.info("※ 次回バージョンでPerplexity（AI検索）にも対応予定です。")
 
 else:

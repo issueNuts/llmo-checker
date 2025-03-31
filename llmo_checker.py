@@ -6,14 +6,19 @@ from datetime import date
 import time
 
 # --- Streamlit UI ---
-st.title("🔍 LLMOチェックツール v0.1")
-st.markdown("指定したドメインが各キーワードでGoogle検索結果の上位に出てくるかをチェックします。")
+st.set_page_config(page_title="LLMOチェック v0.1a", layout="wide")
+st.title("🔍 LLMOチェックツール v0.1a")
+st.markdown("指定ドメインが各キーワードでGoogleやAI検索にどれくらい出てくるかを調査・可視化します。")
 
 # 入力フォーム
-domain = st.text_input("調査対象ドメイン（例: xxxxx.co.jp）", "")
-keywords_input = st.text_area("キーワード一覧（1行に1キーワード、最大10件）", "")
+with st.form("llmo_form"):
+    domain = st.text_input("調査対象ドメイン（例: xxxxx.co.jp）", "")
+    keywords_input = st.text_area("キーワード一覧（1行に1キーワード、最大10件）", "")
+    enable_debug = st.checkbox("デバッグモード（解析中のURLを表示）", value=False)
+    submitted = st.form_submit_button("分析スタート")
 
-if st.button("分析スタート") and domain and keywords_input:
+# --- 処理 ---
+if submitted and domain and keywords_input:
     keywords = [k.strip() for k in keywords_input.strip().split("\n") if k.strip()][:10]
     result_data = []
 
@@ -29,13 +34,16 @@ if st.button("分析スタート") and domain and keywords_input:
         found = False
         match_url = ""
         snippet = ""
+        debug_urls = []
 
         for r in results[:5]:
             link_tag = r.find("a")
             if link_tag and link_tag.has_attr("href"):
                 link = link_tag["href"]
                 text = r.get_text()
-                if domain in link or domain in text:
+                debug_urls.append(link)
+                # ゆるい一致判定
+                if domain in link or f"www.{domain}" in link or domain in text:
                     found = True
                     match_url = link
                     snippet = text[:150]
@@ -45,10 +53,11 @@ if st.button("分析スタート") and domain and keywords_input:
             "キーワード": kw,
             "ヒット": "○" if found else "×",
             "URL": match_url,
-            "抜粋": snippet
+            "抜粋": snippet,
+            "デバッグURL一覧": "; ".join(debug_urls) if enable_debug else ""
         })
 
-        time.sleep(1.5)  # Googleへの負荷を避けるため少し待機
+        time.sleep(1.5)  # 負荷対策
 
     df = pd.DataFrame(result_data)
     st.success(f"検索完了！{len(df)} 件中 {df['ヒット'].tolist().count('○')} 件ヒットしました。")
@@ -61,5 +70,9 @@ if st.button("分析スタート") and domain and keywords_input:
     # CSVダウンロード
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button("CSVとしてダウンロード", data=csv, file_name=f"llmo_results_{date.today()}.csv", mime="text/csv")
+
+    # TODO: AI検索連携（Perplexity APIなど）を次バージョンで追加
+    st.info("※ 次回バージョンでPerplexity（AI検索）にも対応予定です。")
+
 else:
     st.info("ドメインとキーワードを入力して『分析スタート』を押してください。")
